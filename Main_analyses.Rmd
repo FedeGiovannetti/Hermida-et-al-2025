@@ -1,0 +1,817 @@
+---
+title: "Score analyses 2023"
+output:
+  html_document:
+    toc: yes
+    code_folding: hide
+  pdf_document:
+    toc: yes
+classoption: landscape
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = F,message = F)
+
+```
+
+```{r message=FALSE}
+
+# Fresh start for project and directories
+
+rm(list = ls())
+unlink("Tables/*")
+unlink("Figures/*")
+
+## Packages
+
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(flextable)
+library(emmeans)
+library(officer)
+library(car)
+library(asbio)
+library(ggpubr)
+library(openxlsx)
+
+## Setting table propperties
+
+sect_properties <- prop_section(
+  page_size = page_size(
+    orient = "landscape",
+    width = 8.3, height = 11.7
+  ),
+  type = "continuous",
+  page_margins = page_mar()
+)
+
+
+```
+
+### 0. Import database
+
+```{r }
+
+source("data_import.R")
+
+```
+
+### 0.1. Selecting cases and variables
+
+All cases with less than 5 correct answers are removed from analyses.
+
+```{r}
+
+base_completos = base_source %>%
+  filter(Score >= 5) %>%
+  ungroup() %>%
+  select(Case, Time, Group, Score, Proportion,
+         RT, Baseline.Score, Baseline.Proportion, Baseline.RT)
+
+
+```
+
+
+
+# 1. Table 1. Descriptive statistics for each study group and assessment time
+
+```{r}
+
+
+  Descriptive = base_completos %>% 
+  group_by(Group, Time)%>% 
+  summarise(across(c(Score), list(n = ~n(),              # Values calculation
+                                      Mean = ~mean(.x, na.rm = T),
+                                      SD = ~sd(.x, na.rm = T)))) %>% 
+  ungroup() %>% 
+                                                                              # formatting table
+  pivot_longer(
+    !Group:Time,
+    names_to = c("Variable", "stat"),
+    names_sep = "_",
+    values_to = "values"
+  ) %>% 
+  pivot_wider(
+    names_from = c("Time", "stat"),
+    values_from = "values"
+  ) %>%
+   
+  mutate(across(where(is.numeric), ~round(.x, digits = 3))) %>% 
+    flextable() %>% 
+  separate_header(opts = c("span-top", "bottom-vspan"),
+  split = "[_\\.]") %>% 
+  merge_v(j = "Group") %>% 
+  fix_border_issues(part = "all") %>% 
+  set_caption(caption= as_paragraph(as_chunk("Table 1",
+                props = fp_text_default(bold=TRUE, color="black",
+                                        font.size = 12,))), align_with_table = T)
+
+
+Descriptive
+
+Descriptive %>%                                                                 #Saving table to "Tables" folder
+  save_as_docx(path = "Tables/Table_01-Descriptive.docx", pr_section = sect_properties)
+
+
+```
+
+
+
+# 2. Baseline analyses
+
+Baseline scores are compared between groups in order to establish if all participants share the same initial level of knowledge.
+
+## 2.1. ANOVA
+
+```{r}
+
+baseline_data = base_completos %>%                                              # Preparing data
+  na.omit() %>% 
+  filter(Time == "Baseline")
+
+
+baseline_model = lm(data=baseline_data, Score~Group)                            # Fitting model
+
+
+baseline_model_table = summary(baseline_model)$coefficients %>% 
+  as_tibble(rownames = NA) %>% 
+  mutate(Coefficient =c("Intercept",
+                        "Workshop", "Full_Workshop"),
+         `CI [.25 %]` = as.vector(confint(baseline_model)[-c(1,2),1]),
+         `CI [.75 %]` = as.vector(confint(baseline_model)[-c(1,2),2])) %>% 
+
+  mutate(`Pr(>|t|)` = round(x = `Pr(>|t|)`, digits = 4)) %>% 
+  mutate(`Pr(>|t|)` = ifelse(`Pr(>|t|)` == 0, "< .001", `Pr(>|t|)`)) %>% 
+  mutate(across(where(is.numeric), ~round(.x, digits = 3))) %>% 
+  select(Coefficient, `Estimate`,`Std. Error`, `t value`, `Pr(>|t|)`, everything()) %>% 
+  flextable() %>% 
+  set_caption(caption= as_paragraph(as_chunk("Baseline analyses (score)",
+                props = fp_text_default(bold=TRUE, color="black",
+                                        font.size = 12,))), align_with_table = T)
+
+
+baseline_model_table
+
+```
+
+## 2.2. ANOVA model assumptions
+
+```{r}
+
+### extracting standardized residuals
+baseline_model_residuals= resid(baseline_model, type = "pearson")
+
+# variance homogeneity between groups
+
+homogeneity_model = leveneTest(baseline_model_residuals,baseline_data$Group) %>% 
+  broom::tidy() %>%
+  
+  mutate(across(where(is.numeric), ~round(.x, digits = 4))) %>% 
+  flextable() %>% 
+    set_caption(caption= as_paragraph(as_chunk("Homogenity of variance between groups - Baseline analyses (Score)",
+                props = fp_text_default(bold=TRUE, color="black",
+                                        font.size = 12,))), align_with_table = T)
+
+homogeneity_model
+
+
+# normality of residuals
+
+ggplot(data.frame(baseline_model_residuals), aes(sample = baseline_model_residuals)) +
+  stat_qq() +
+  labs(title = "Q-Q Plot of Residuals", x = "Theoretical Quantiles", y = "Sample Quantiles") +
+  theme_minimal()+
+  ggtitle("Normality of residuals checks")
+
+
+```
+
+## 2.3. Kruskall wallis Test
+
+Given that normality of standardized residuals was not met for the ANOVA model, Kruskal Wallis test for non-parametric distributions is held.
+
+```{r}
+
+kruskal_baseline = kruskal.test(Score ~ Group, baseline_data) %>% 
+  broom::tidy() %>% 
+  select(statistic, p.value) %>% 
+  rename(Statistic = statistic,
+         `P value` = p.value) %>% 
+  mutate(`P value` = round(x = `P value`, digits = 5)) %>% 
+  mutate(`P value` = ifelse(`P value` == 0, "< .001", `P value`)) %>% 
+  mutate(across(where(is.numeric), ~round(.x, digits = 3))) %>% 
+  flextable() %>% 
+  set_caption(caption= as_paragraph(as_chunk("Non parametric Baseline score analyses",
+                props = fp_text_default(bold=TRUE, color="black",
+                                        font.size = 12,))), align_with_table = F)
+
+kruskal_baseline
+
+```
+
+# 3. Main Analysis
+
+Linear mixed models analysis is held in order to study score differences between groups and time assessments. This is the main analysis.
+
+### 3.1. Table 2. Generalized Mixed Model results and model fitness values
+
+```{r}
+
+
+data.model <- base_completos %>%                             # Preparing data
+  filter(Time != "Baseline")
+
+model =                                                      # Model fitting
+  lmer( Score ~ Time + Group + Baseline.Score + 
+          Baseline.Score:Time + Time:Group + 
+          (1|Case),
+        data= data.model,
+        control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5))) 
+
+
+
+### validate model 
+rsquared = summary(lm(predict(model)~data.model$Score))$r.squared 
+AIC = AIC(model)
+BIC = BIC(model)
+
+
+model_table = summary(model)$coefficients %>% 
+  as_tibble(rownames = NA) %>% 
+  mutate(Coefficient =c("Intercept","Time",
+                        "Workshop", "Full_Workshop",
+                        "Baseline",
+                        "Baseline : Time",
+                        "Time : Workshop",
+                        "Time : Full_Workshop"),
+         `CI [.25 %]` = as.vector(confint(model)[-c(1,2),1]),
+         `CI [.75 %]` = as.vector(confint(model)[-c(1,2),2])) %>% 
+    mutate(`R squared` = c(round(rsquared, digits =3), rep("",7))) %>%
+  
+  mutate(AIC = c(round(AIC, digits =3), rep("",7))) %>%
+  mutate(BIC = c(round(BIC, digits =3), rep("",7))) %>%
+  mutate(`Pr(>|t|)` = round(x = `Pr(>|t|)`, digits = 4)) %>% 
+  mutate(`Pr(>|t|)` = ifelse(`Pr(>|t|)` == 0, "< .001", `Pr(>|t|)`)) %>% 
+  mutate(across(where(is.numeric), ~round(.x, digits = 3))) %>% 
+  select(Coefficient, `Estimate`,`Std. Error`, df, `t value`, `Pr(>|t|)`, everything()) %>% 
+  flextable() %>% 
+  set_caption(caption= as_paragraph(as_chunk("Linear Mixed Models coefficients estimates (Score)",
+                props = fp_text_default(bold=TRUE, color="black",
+                                        font.size = 12,))), align_with_table = F)
+
+
+model_table
+
+
+model_table %>%
+  save_as_docx(path = "Tables/Table02.docx", pr_section = sect_properties)
+
+
+```
+
+### 3.2. Checking Model assumptions
+
+```{r}
+
+### extracting residuals and fitted values
+residuals <- residuals(model)
+fitted_values <- fitted(model)
+
+# Heterocedasticity
+
+p1 <- ggplot(data.frame(fitted_values, residuals), aes(fitted_values, residuals)) +
+  geom_point(alpha = 0.6) +
+  labs(title = "Residuals vs Fitted Values", x = "Fitted Values", y = "Residuals") +
+  theme_minimal()+
+  ggtitle("Heterocedasticity checks")
+
+
+# normality of residuals
+p2 <- ggplot(data.frame(residuals), aes(sample = residuals)) +
+  stat_qq() +
+  labs(title = "Q-Q Plot of Residuals", x = "Theoretical Quantiles", y = "Sample Quantiles") +
+  theme_minimal()+
+  ggtitle("Normality of residuals checks")
+
+
+
+
+# normality of random effects over Intercept, by grouping variable (Case)
+exp1_model_reff = ranef(model)$Case$`(Intercept)`
+
+p3 <- ggplot(data.frame(exp1_model_reff), aes(sample = exp1_model_reff)) +
+  stat_qq() +
+  labs(title = "Q-Q Plot of Residuals", x = "Theoretical Quantiles", y = "Sample Quantiles") +
+  theme_minimal()+
+  ggtitle("Normality of random effects checks")
+
+
+ggpubr::ggarrange(p1, p2, p3)
+
+```
+
+
+# 4. Figure 1 
+
+```{r}
+
+
+exp1_cols= c("#aeaeae","#9D7AD2","#99ccff","#ffae3b") # group colors
+
+Figure1 = base_completos%>%  
+  group_by(Time, Group) %>% 
+  summarise(Score_mean = mean(Score),
+            SE = sqrt(sum((Score-mean(Score))^2/(length(Score)-1)))/sqrt(length(Score))) %>% 
+  ggplot(aes(x=Time, y=Score_mean, group=Group, color=Group, fill= Group))+
+  
+  scale_fill_manual(values=exp1_cols)+
+  scale_color_manual(values=exp1_cols)+
+  scale_shape_manual(values = c(21, 25, 22,24)) +
+
+  geom_line(lty=2,lwd=1, position=position_dodge(width = 0.2), alpha= .7)+
+  geom_point(aes(shape= Group), 
+             position=position_dodge(width = 0.2),size= 5)+
+  geom_errorbar(aes(ymin=Score_mean-SE, ymax=Score_mean+SE),
+                position=position_dodge(width = 0.2),width=0,lwd=1.75)+
+  labs(y="Score",x="Time") +
+  theme_bw(base_size = 20) +
+  theme(legend.position=c(0.84,0.15))
+
+
+Figure1
+
+Figure1%>%
+  ggexport(filename = "Figures/Figure1.png", width = 720, height = 480)
+
+```
+
+
+
+# 5. Table S3. Linear Mixed Models between groups comparisons 
+
+```{r}
+
+#Between groups
+
+btw_comparisons = emmeans(model, revpairwise ~ Group|Time)$contrasts %>% 
+  summary(infer = TRUE) %>% 
+  as_tibble() %>% 
+  rename(Contrast = contrast,
+         Estimate = estimate,
+         `Lower CL` = lower.CL,
+         `Upper CL` = upper.CL,
+         `T ratio` = t.ratio,
+         `P value` = p.value) %>% 
+  mutate(Contrast = rep(c("Abb. Workshop - Talk", 
+                      "Workshop - Talk", 
+                      "Workshop - Abb. Workshop"), 2)) %>% 
+  mutate(`P value` = round(x = `P value`, digits = 4)) %>% 
+  mutate(`P value` = ifelse(`P value` == 0, "< .001", `P value`)) %>% 
+  mutate(across(where(is.numeric), ~round(.x, digits = 2))) %>% 
+  flextable() %>% 
+  set_caption(caption= as_paragraph(as_chunk("Table S3. Linear Mixed Models between groups comparisons ",
+                props = fp_text_default(bold=TRUE, color="black",
+                                        font.size = 12,))), align_with_table = F)
+
+
+btw_comparisons
+
+
+btw_comparisons %>%
+  save_as_docx(path = "Tables/TableS3-Pairwise_between_LMM_Score.docx", pr_section = sect_properties)
+
+
+
+
+```
+
+# 6. Table S4. Linear Mixed Models within groups comparisons 
+
+```{r}
+
+### Within comparisons
+
+wtn_comparisons = emmeans(model, revpairwise ~ Time|Group)$contrasts %>% 
+  summary(infer = TRUE) %>% 
+  as_tibble() %>% 
+  rename(Contrast = contrast,
+         Estimate = estimate,
+         `Lower CL` = lower.CL,
+         `Upper CL` = upper.CL,
+         `T ratio` = t.ratio,
+         `P value` = p.value) %>% 
+  mutate(Group = c("Talk", 
+                      "Abb. Workshop", 
+                      "Workshop")) %>% 
+  mutate(`P value` = round(x = `P value`, digits = 4)) %>% 
+  mutate(`P value` = ifelse(`P value` == 0, "< .001", `P value`)) %>% 
+  mutate(across(where(is.numeric), ~round(.x, digits = 2))) %>% 
+  flextable() %>% 
+  set_caption(caption= as_paragraph(as_chunk("Linear Mixed Models within groups comparisons (Score)",
+                props = fp_text_default(bold=TRUE, color="black",
+                                        font.size = 12,))), align_with_table = F)
+
+
+wtn_comparisons
+
+
+wtn_comparisons %>%
+  save_as_docx(path = "Tables/TableS4-Pairwise_within_LMM_Score.docx", pr_section = sect_properties)
+
+
+```
+
+
+# 7. Delta analysis
+
+```{r}
+
+# Data preparation
+
+base_T1 = base_completos %>% 
+  filter(Time != "T2") %>% 
+  group_by(Case, Group) %>%
+  summarise(Baseline.vs.T1 = diff(Score)) %>% 
+  ungroup()
+
+
+base_T2 = base_completos %>% 
+  filter(Time != "T1") %>% 
+  group_by(Case, Group) %>%
+  summarise(Baseline.vs.T2 = diff(Score)) %>% 
+  ungroup()
+
+
+base_deltas = left_join(base_T1, base_T2)
+
+# ANOVA
+
+
+# Descriptive 
+
+descriptivos_deltas = base_deltas %>% 
+  group_by(Group)%>% 
+  summarise(n = n(),
+            across(c(Baseline.vs.T1, Baseline.vs.T2), list(Mean = ~mean(.,na.rm = T),
+                                                 SD = ~sd(.,na.rm = T)))) 
+
+# Main model
+
+base_deltas %>%
+  select(Baseline.vs.T1, Baseline.vs.T2) %>%
+  map(~ aov(.x ~ Group, data = base_deltas)) %>%
+  map_dfr(~ broom::tidy(.), .id = 'source') %>%
+  filter(term != "Residuals") %>% 
+  rename(F.statistic = statistic) %>% 
+  select(source,F.statistic, p.value) %>% 
+  pivot_wider(names_from = source, values_from = c("F.statistic", "p.value"),
+              names_glue = "{source}_{.value}") %>% 
+  mutate(across(where(is.numeric),
+                ~ifelse(.x < 0.001 & .x != 0, "< .001", .x)))-> anova_deltas
+
+## Final table
+
+tabla_deltas = cbind(descriptivos_deltas,
+                               anova_deltas) %>% 
+  
+  
+  select(Group:Baseline.vs.T1_SD, Baseline.vs.T1_F.statistic, Baseline.vs.T1_p.value,
+         Baseline.vs.T2_Mean: Baseline.vs.T2_SD, Baseline.vs.T2_F.statistic, Baseline.vs.T2_p.value) %>%
+  mutate(across(where(is.numeric), ~round(.x,3))) %>%
+
+  flextable() %>%
+  separate_header(split = "[_\\_]") %>%
+    merge_v(j = c("Baseline.vs.T1_p.value", "Baseline.vs.T1_F.statistic",
+                  "Baseline.vs.T2_p.value", "Baseline.vs.T2_F.statistic")) %>%
+  fix_border_issues(part = "all")
+
+tabla_deltas
+
+```
+
+
+# 8. Question-by-question analysis
+
+## 8.1. Descriptive
+
+```{r}
+
+
+
+Frecuencias_conceptos = base_long_concept %>% 
+    group_by(Group, Time, Pregunta) %>%
+    summarise(Frecuencia = sum(Respuesta, na.rm = T),
+              Porcentaje = (Frecuencia/n())*100,
+              n = n()) %>% 
+    mutate(Time = factor(Time, levels = c("T2", "T1", "Baseline"))) %>% 
+  ungroup()
+
+
+  Descriptive = Frecuencias_conceptos %>% 
+  select(Time, Group, Pregunta, Porcentaje) %>% 
+    pivot_wider(id_cols = c("Pregunta", "Group"),
+    names_from = c( "Time"),
+    values_from = "Porcentaje"
+  ) %>%
+    arrange(desc(Pregunta)) %>% 
+   
+  mutate(across(where(is.numeric), ~round(.x, digits = 3))) %>% 
+    flextable() %>% 
+  merge_v(j = "Pregunta") %>% 
+     width(j = 1, width = 10) %>% 
+  valign(j = 1, valign = "top") %>% 
+  fix_border_issues(part = "all") %>% 
+  set_caption(caption= as_paragraph(as_chunk("Descriptive statistics",
+                props = fp_text_default(bold=TRUE, color="black",
+                                        font.size = 12,))), align_with_table = T)
+
+
+
+Descriptive
+
+
+```
+
+
+##8.1. GLMM coefficients for each question
+
+```{r}
+
+table_list = list()
+
+Questions_vector = unique(base_long_concept$Pregunta)
+
+for (i in 1:length(Questions_vector)) {
+  
+  baseline_response_df = base_long_concept %>% 
+    filter(Time == "Baseline") %>% 
+    select(Caso, Pregunta, Group, Respuesta) %>% 
+    rename(Baseline_response = "Respuesta")
+  
+  data.model <- base_long_concept %>%                             # Preparing data
+    filter(Time != "Baseline") %>%
+    filter(Pregunta == Questions_vector[i]) %>% 
+    left_join(baseline_response_df) %>% 
+    filter(!is.na(Respuesta))%>% 
+    filter(!is.na(Baseline_response))
+  
+  
+  model =                                                      # Model fitting
+    glmer( Respuesta ~ Time + Group + Baseline_response + 
+            Baseline_response:Time + Time:Group + 
+            (1|Caso),
+          data= data.model,
+          family=binomial,
+          control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5))) 
+  
+  
+  # summary(model)
+  
+  ### validate model 
+  rsquared = summary(lm(predict(model)~data.model$Respuesta))$r.squared 
+  AIC = AIC(model)
+  BIC = BIC(model)
+  
+  
+table_list[[i]] = summary(model)$coefficients %>% 
+    as_tibble(rownames = NA) %>% 
+    mutate(Coefficient =c("Intercept","Time",
+                          "Workshop", "Full_Workshop",
+                          "Baseline",
+                          "Baseline : Time",
+                          "Time : Workshop",
+                          "Time : Full_Workshop")
+           ) %>%
+    mutate(`R squared` = c(round(rsquared, digits =3), rep("",7))) %>%
+    mutate(AIC = c(round(AIC, digits =3), rep("",7))) %>%
+    mutate(BIC = c(round(BIC, digits =3), rep("",7))) %>%
+    add_row(Coefficient = Questions_vector[i], .before = 1)                     ## Adding question text to table
+  
+
+}
+
+table_questions_models = reduce(table_list, full_join) %>% 
+
+  mutate(`Pr(>|z|)` = round(x = `Pr(>|z|)`, digits = 4)) %>%
+  mutate(`Pr(>|z|)` = ifelse(`Pr(>|z|)` < 0.001, "< .001", `Pr(>|z|)`)) %>% 
+  mutate(across(where(is.numeric), ~round(.x, digits = 3))) %>% 
+  select(Coefficient, `Estimate`,`Std. Error`, `z value`, `Pr(>|z|)`, everything()) 
+
+
+table_questions_models_flex = table_questions_models%>% 
+    flextable() %>%
+    merge_h_range(i = seq(1, nrow(table_questions_models), by = 9),
+                  j1 = 1, j2 = ncol(table_questions_models)) %>%
+    set_caption(caption= as_paragraph(as_chunk(paste("Generalized Linear Mixed Models coefficients estimates for each question", Questions_vector[i]),
+                  props = fp_text_default(bold=TRUE, color="black",
+                                          font.size = 12,))), align_with_table = F) 
+#   
+table_questions_models_flex
+# 
+# 
+# table_questions_models_flex %>%
+#   save_as_docx(path = "Tables/TableS4-GLMM_questions.docx", pr_section = sect_properties)
+# 
+
+
+```
+
+## 8.2. Table S5. Linear Mixed Models between groups comparisons for significant questions
+
+```{r}
+
+significant_questions <- c("Do mosquitoes bite more on the face and back than on the legs and arms?",
+                           "Besides mosquitoes, can people also spread dengue fever?",
+                           "Before flying, is the mosquito a larva that lives in water?",
+                           "Is the aedes aegypti black with white spots and stripes on its body and legs?")
+
+table_list = list()
+  
+for (i in 1:length(significant_questions)) {
+
+  baseline_response_df = base_long_concept %>% 
+    filter(Time == "Baseline") %>% 
+    select(Caso, Pregunta, Group, Respuesta) %>% 
+    rename(Baseline_response = "Respuesta")
+  
+  data.model <- base_long_concept %>%                             # Preparing data
+    filter(Time != "Baseline") %>%
+    filter(Pregunta == significant_questions[i]) %>% 
+    left_join(baseline_response_df) %>% 
+    filter(!is.na(Respuesta))%>% 
+    filter(!is.na(Baseline_response))
+  
+  
+  model =                                                      # Model fitting
+    glmer( Respuesta ~ Time + Group + Baseline_response + 
+            Baseline_response:Time + Time:Group + 
+            (1|Caso),
+          data= data.model,
+          family=binomial,
+          control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5))) 
+
+#Between groups
+
+table_list[[i]] = emmeans(model, revpairwise ~ Group|Time, p.adjust = "holm")$contrasts %>% 
+    summary(infer = TRUE) %>% 
+    as_tibble() %>% 
+    rename(Contrast = contrast,
+           Estimate = estimate,
+           `Lower CL` = asymp.LCL,
+           `Upper CL` = asymp.UCL,
+           `Z ratio` = z.ratio,
+           `P value` = p.value) %>% 
+  mutate(Contrast = rep(c("Abb. Workshop - Talk", 
+                      "Workshop - Talk", 
+                      "Workshop - Abb. Workshop"), 2)) %>% 
+
+    add_row(Contrast = significant_questions[i], .before = 1)                     ## Adding question text to table
+
+
+}
+
+btw_commparisons = reduce(table_list, full_join) %>% 
+    mutate(`P value` = round(x = `P value`, digits = 4)) %>%
+    mutate(`P value` = ifelse(`P value` < 0.001, "< .001", `P value`)) %>%
+    mutate(across(where(is.numeric), ~round(.x, digits = 2))) %>% 
+  select(Contrast, Time, Estimate, SE, `Lower CL`, `Upper CL`, `Z ratio`, `P value`)
+  
+  
+btw_comparsons_flex = btw_commparisons %>% 
+    flextable() %>%
+  
+    merge_h_range(i = seq(1, nrow(btw_commparisons), by = 7), j1 = 1, j2 = ncol(btw_commparisons)) %>%
+    set_caption(caption= as_paragraph(as_chunk("Table S5. Linear Mixed Models between groups comparisons for significant questions",
+                  props = fp_text_default(bold=TRUE, color="black",
+                                          font.size = 12,))), align_with_table = F)
+btw_comparsons_flex
+
+btw_comparsons_flex %>%
+  save_as_docx(path = "Tables/TableS5-Pairwise_between_questions.docx", pr_section = sect_properties)
+
+
+```
+
+## 8.3. Table S6. Linear Mixed Models within groups comparisons for significant questions
+
+```{r}
+
+table_list = list()
+
+for (i in 1:length(significant_questions)) {
+
+  baseline_response_df = base_long_concept %>% 
+    filter(Time == "Baseline") %>% 
+    select(Caso, Pregunta, Group, Respuesta) %>% 
+    rename(Baseline_response = "Respuesta")
+  
+  data.model <- base_long_concept %>%                             # Preparing data
+    filter(Time != "Baseline") %>%
+    filter(Pregunta == significant_questions[i]) %>% 
+    left_join(baseline_response_df) %>% 
+    filter(!is.na(Respuesta))%>% 
+    filter(!is.na(Baseline_response))
+  
+  
+  model =                                                      # Model fitting
+    glmer( Respuesta ~ Time + Group + Baseline_response + 
+            Baseline_response:Time + Time:Group + 
+            (1|Caso),
+          data= data.model,
+          family=binomial,
+          control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5))) 
+
+#Between groups
+
+table_list[[i]] = emmeans(model, revpairwise ~ Time|Group, p.adjust = "holm")$contrasts %>% 
+    summary(infer = TRUE) %>% 
+    as_tibble() %>% 
+    rename(Contrast = contrast,
+           Estimate = estimate,
+           `Lower CL` = asymp.LCL,
+           `Upper CL` = asymp.UCL,
+           `Z ratio` = z.ratio,
+           `P value` = p.value) %>% 
+  mutate(Group = c("Talk", 
+                      "Abb. Workshop", 
+                      "Workshop")) %>% 
+
+    add_row(Contrast = significant_questions[i], .before = 1)                     ## Adding question text to table
+
+
+}
+
+wtn_commparisons = reduce(table_list, full_join) %>% 
+    mutate(`P value` = round(x = `P value`, digits = 4)) %>%
+    mutate(`P value` = ifelse(`P value` == 0, "< .001", `P value`)) %>%
+    mutate(across(where(is.numeric), ~round(.x, digits = 2))) %>% 
+  select(Contrast, Group, Estimate, SE, `Lower CL`, `Upper CL`, `Z ratio`, `P value`)
+  
+  
+wtn_comparsons_flex = wtn_commparisons %>% 
+    flextable() %>%
+  
+    merge_h_range(i = seq(1, nrow(wtn_commparisons), by = 4), j1 = 1, j2 = ncol(wtn_commparisons)) %>%
+    set_caption(caption= as_paragraph(as_chunk("Table S5. Linear Mixed Models within groups comparisons for significant questions",
+                  props = fp_text_default(bold=TRUE, color="black",
+                                          font.size = 12,))), align_with_table = F)
+wtn_comparsons_flex
+
+wtn_comparsons_flex %>%
+  save_as_docx(path = "Tables/TableS6-Pairwise_within_questions.docx", pr_section = sect_properties)
+
+```
+
+
+## 8.4. Figure 2. Percentage of correct responses for questions with statistically significant differences between or within groups.
+
+```{r, fig.height=10, fig.width=10}
+
+plot_list = list()
+
+for (i in 1:length(significant_questions)) {
+
+      plot_list[[i]] <- Frecuencias_conceptos%>%  
+        filter(Pregunta == significant_questions[i]) %>% 
+        mutate(Time = factor(Time, levels = c("Baseline", "T1", "T2"))) %>% 
+        # group_by(Time, Group) %>% 
+        mutate(p = Porcentaje/100,
+               # n =n(),
+               SE = sqrt((p * (1 - p)) / n)*100) %>% 
+
+        ggplot(aes(x=Time, y=Porcentaje, group=Group, color=Group, fill= Group))+
+
+        scale_fill_manual(values=exp1_cols)+
+        scale_color_manual(values=exp1_cols)+
+        scale_shape_manual(values = c(21, 25, 22,24)) +
+
+        geom_line(lty=2,lwd=1, position=position_dodge(width = 0.2), alpha= .7)+
+        geom_point(aes(shape= Group),
+                   position=position_dodge(width = 0.2),size= 5)+
+        geom_errorbar(aes(ymin=Porcentaje-SE, ymax=Porcentaje+SE),
+                      position=position_dodge(width = 0.2),width=0,lwd=1.75)+
+        annotate("text", label = paste(strwrap(significant_questions[i], width = 45), collapse = "\n"),
+                x = 0.6, y = 15, size = 4, colour = "black", hjust = 0)+
+        labs(y="Percentage",x="Time") +
+        theme_bw(base_size = 15) +
+        coord_cartesian(ylim = c(10,100))
+
+
+      
+      }
+
+
+Figure2 = ggarrange(plotlist = plot_list, common.legend = T,
+                    legend = "bottom", ncol = 2, nrow = 2,
+                    labels = c("A", "B", "C", "D"))
+
+Figure2
+
+Figure2%>%
+  ggexport(filename = "Figures/Figure2.png", width = 720, height = 720)
+
+```
+
