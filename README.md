@@ -2,7 +2,7 @@
 
 Hermida, Maria Julia (CONICET-UNAHUR, Buenos Aires, 1688, Argentina)\*, Carolina Goizueta (FMS, Puerto Iguazú, 3370 , Argentina), Federico Giovannetti (UNA, CEMIC-CONICET, Buenos Aires, 1431, Argentina), Catalina Canosa (FMS, Buenos Aires, 1061 , Argentina), Maria Victoria Periago (CONICET-FMS, Buenos Aires, 1061 , Argentina), Carolina Lopez Ferloni (FMS, Buenos Aires, 1061, Argentina)
 
-\*julia.hermida\@gmail.com
+\*julia.hermida@gmail.com
 
 ## Abstract
 
