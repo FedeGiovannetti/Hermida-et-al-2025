@@ -10,7 +10,7 @@ Education about dengue disease is fundamental to fostering the behavioral change
 
 ## Data
 
-The data used in the present article is available in this repo at [**base prevencion en accion - 2023.xlsx**](https://github.com/FedeGiovannetti/Hermida-et-al-2025/blob/master/base%20prevencion%20en%20accion%20-%202023.xlsx){.uri style="font-size: 11pt;"}
+The data used in the present article is available in this repo at [**base prevencion en accion - 2023.xlsx**](https://github.com/FedeGiovannetti/Hermida-et-al-2025/blob/master/base%20prevencion%20en%20accion%20-%202023.xlsx)
 
 ## Analyses
 
