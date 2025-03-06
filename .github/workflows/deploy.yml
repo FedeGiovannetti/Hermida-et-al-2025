@@ -1,6 +1,5 @@
 name: Deploy to GitHub Pages
 
-# Define the permissions for the workflow
 permissions:
   contents: write  # Grants write access to the contents of the repository
   pages: write    # Grants write access to GitHub Pages
@@ -19,18 +18,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      # Step 2: Copy Main_analyses.html to index.html
+      # Step 2: Verify the file exists before copying (Debugging)
+      - name: Verify Main_analyses.html exists
+        run: |
+          ls -la  # List files to verify the location of Main_analyses.html
+          cat Main_analyses.html  # Display the contents to ensure it is there
+
+      # Step 3: Copy Main_analyses.html to index.html
       - name: Copy Main_analyses.html to index.html
         run: |
           cp Main_analyses.html index.html  # Adjust if file is in a subfolder
+          ls -la  # Verify index.html is created after the copy
 
-      # Step 3: Set up Git user (to avoid permission issues)
+      # Step 4: Set up Git user (to avoid permission issues)
       - name: Set up Git user
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
 
-      # Step 4: Deploy to GitHub Pages using the GITHUB_TOKEN
+      # Step 5: Deploy to GitHub Pages using the GITHUB_TOKEN
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
