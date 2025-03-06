@@ -7,7 +7,7 @@ permissions:
 on:
   push:
     branches:
-      - master  # Change to your default branch, e.g., 'master'
+      - master  # Change to your default branch, which is 'master'
 
 jobs:
   deploy:
@@ -36,10 +36,17 @@ jobs:
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
 
-      # Step 5: Deploy to GitHub Pages using the GITHUB_TOKEN
+      # Step 5: Commit the changes to the same branch (master)
+      - name: Commit and push index.html
+        run: |
+          git add index.html
+          git commit -m "Deploy index.html to GitHub Pages"
+          git push origin master  # Push to the same branch
+
+      # Step 6: Deploy to GitHub Pages using the GITHUB_TOKEN
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           personal_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: gh-pages  # The branch GitHub Pages uses
+          branch: master  # Use the same branch you're pushing to
           folder: .
