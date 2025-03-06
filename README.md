@@ -14,6 +14,6 @@ The data used in the present article is available in this repo at [**base preven
 
 ## Analyses
 
-Implemented analyses may be visualized at [Main_analyses.html](https://htmlpreview.github.io/?https://github.com/FedeGiovannetti/Hermida-et-al-2025/blob/master/Main_analyses.html). To access source code, please refer to [Main_analyses.Rmd](https://github.com/FedeGiovannetti/Hermida-et-al-2025/blob/master/Main_analyses.Rmd)
+Implemented analyses may be visualized at [Main_analyses.html](https://fedegiovannetti.github.io/Hermida-et-al-2025/). To access source code, please refer to [Main_analyses.Rmd](https://github.com/FedeGiovannetti/Hermida-et-al-2025/blob/master/Main_analyses.Rmd)
 
 ## Citation
