@@ -1,0 +1,35 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main  # Or the branch you use for deployment
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Build your project if needed (optional, for example, if you're using a static site generator)
+      - name: Build project
+        run: |
+          # Any build steps for your project go here, if needed
+          # For example, running a build script:
+          # npm install
+          # npm run build
+
+      # Copy Main_analyses.html to index.html
+      - name: Copy Main_analyses.html to index.html
+        run: |
+          cp Main_analyses.html index.html
+
+      # Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          personal_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: gh-pages
+          folder: .
