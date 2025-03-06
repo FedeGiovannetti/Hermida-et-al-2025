@@ -1,11 +1,26 @@
 ---
-title: "Score analyses 2023"
+title: "Direct instruction and Workshop educational approaches are equally effective in increasing dengue knowledge in 10 years old children"
+subtitle: "-"
+author: 
+  - name: "Maria Julia Hermida"
+    affiliation: "CONICET-UNAHUR, Buenos Aires, 1688, Argentina"
+  - name: "Carolina Goizueta"
+    affiliation: "FMS, Puerto Iguazú, 3370, Argentina"
+  - name: "Federico Giovannetti"
+    affiliation: "UNA, CEMIC-CONICET, Buenos Aires, 1431, Argentina"
+  - name: "Catalina Canosa"
+    affiliation: "FMS, Buenos Aires, 1061, Argentina"
+  - name: "Maria Victoria Periago"
+    affiliation: "CONICET-FMS, Buenos Aires, 1061, Argentina"
+  - name: "Carolina Lopez Ferloni"
+    affiliation: "FMS, Buenos Aires, 1061, Argentina"
 output:
   html_document:
     toc: yes
     code_folding: hide
-  pdf_document:
-    toc: yes
+    toc_float: true
+    collapsed: true
+toc-title: "Table of contents"
 classoption: landscape
 ---
 
@@ -76,7 +91,7 @@ base_completos = base_source %>%
 
 
 
-# 1. Table 1. Descriptive statistics for each study group and assessment time
+# 1. Table 2. Descriptive statistics for each study group and assessment time
 
 ```{r}
 
@@ -113,7 +128,7 @@ base_completos = base_source %>%
 Descriptive
 
 Descriptive %>%                                                                 #Saving table to "Tables" folder
-  save_as_docx(path = "Tables/Table_01-Descriptive.docx", pr_section = sect_properties)
+  save_as_docx(path = "Tables/Table_02-Descriptive.docx", pr_section = sect_properties)
 
 
 ```
@@ -216,7 +231,7 @@ kruskal_baseline
 
 Linear mixed models analysis is held in order to study score differences between groups and time assessments. This is the main analysis.
 
-### 3.1. Table 2. Generalized Mixed Model results and model fitness values
+### 3.1. Table 3. Generalized Mixed Model results and model fitness values
 
 ```{r}
 
@@ -267,7 +282,7 @@ model_table
 
 
 model_table %>%
-  save_as_docx(path = "Tables/Table02.docx", pr_section = sect_properties)
+  save_as_docx(path = "Tables/Table03.docx", pr_section = sect_properties)
 
 
 ```
@@ -777,7 +792,6 @@ for (i in 1:length(significant_questions)) {
       plot_list[[i]] <- Frecuencias_conceptos%>%  
         filter(Pregunta == significant_questions[i]) %>% 
         mutate(Time = factor(Time, levels = c("Baseline", "T1", "T2"))) %>% 
-        # group_by(Time, Group) %>% 
         mutate(p = Porcentaje/100,
                # n =n(),
                SE = sqrt((p * (1 - p)) / n)*100) %>% 
@@ -790,9 +804,9 @@ for (i in 1:length(significant_questions)) {
 
         geom_line(lty=2,lwd=1, position=position_dodge(width = 0.2), alpha= .7)+
         geom_point(aes(shape= Group),
-                   position=position_dodge(width = 0.2),size= 5)+
+                   position=position_dodge(width = 0.2),size= 3)+
         geom_errorbar(aes(ymin=Porcentaje-SE, ymax=Porcentaje+SE),
-                      position=position_dodge(width = 0.2),width=0,lwd=1.75)+
+                      position=position_dodge(width = 0.2),width=0,lwd=1.25)+
         annotate("text", label = paste(strwrap(significant_questions[i], width = 45), collapse = "\n"),
                 x = 0.6, y = 15, size = 4, colour = "black", hjust = 0)+
         labs(y="Percentage",x="Time") +
