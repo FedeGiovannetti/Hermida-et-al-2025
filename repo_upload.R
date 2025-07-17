@@ -5,7 +5,7 @@ library(gert)
 
 git_add(".")
 
-git_commit("Version 1.0")
+git_commit("Version 1.01. added tables in excel format and figures in tiff")
 
 git_push()
 

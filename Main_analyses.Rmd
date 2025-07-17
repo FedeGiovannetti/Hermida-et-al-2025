@@ -51,6 +51,7 @@ library(car)
 library(asbio)
 library(ggpubr)
 library(openxlsx)
+library(flexlsx)
 
 ## Setting table propperties
 
@@ -120,7 +121,7 @@ base_completos = base_source %>%
   split = "[_\\.]") %>% 
   merge_v(j = "Group") %>% 
   fix_border_issues(part = "all") %>% 
-  set_caption(caption= as_paragraph(as_chunk("Table 1",
+  set_caption(caption= as_paragraph(as_chunk("Table 2",
                 props = fp_text_default(bold=TRUE, color="black",
                                         font.size = 12,))), align_with_table = T)
 
@@ -129,6 +130,14 @@ Descriptive
 
 Descriptive %>%                                                                 #Saving table to "Tables" folder
   save_as_docx(path = "Tables/Table_02-Descriptive.docx", pr_section = sect_properties)
+
+
+
+Descriptive_excel <- openxlsx2::wb_workbook()$add_worksheet("Table 2") %>% 
+  wb_add_flextable("Table 2", Descriptive)
+
+Descriptive_excel$save("Tables/Table_02-Descriptive.xlsx")
+
 
 
 ```
@@ -284,6 +293,11 @@ model_table
 model_table %>%
   save_as_docx(path = "Tables/Table03.docx", pr_section = sect_properties)
 
+model_table_excel <- openxlsx2::wb_workbook()$add_worksheet("Table 3") %>% 
+  wb_add_flextable("Table 3", model_table)
+
+model_table_excel$save("Tables/Table03.xlsx")
+
 
 ```
 
@@ -352,7 +366,7 @@ Figure1 = base_completos%>%
   geom_errorbar(aes(ymin=Score_mean-SE, ymax=Score_mean+SE),
                 position=position_dodge(width = 0.2),width=0,lwd=1.75)+
   labs(y="Score",x="Time") +
-  theme_bw(base_size = 20) +
+  theme_bw(base_size = 5) +
   theme(legend.position=c(0.84,0.15))
 
 
@@ -360,6 +374,31 @@ Figure1
 
 Figure1%>%
   ggexport(filename = "Figures/Figure1.png", width = 720, height = 480)
+
+# figure1_tiff = base_completos%>%  
+#   group_by(Time, Group) %>% 
+#   summarise(Score_mean = mean(Score),
+#             SE = sqrt(sum((Score-mean(Score))^2/(length(Score)-1)))/sqrt(length(Score))) %>% 
+#   ggplot(aes(x=Time, y=Score_mean, group=Group, color=Group, fill= Group))+
+#   
+#   scale_fill_manual(values=exp1_cols)+
+#   scale_color_manual(values=exp1_cols)+
+#   scale_shape_manual(values = c(21, 25, 22,24)) +
+# 
+#   geom_line(lty=2,lwd=1, position=position_dodge(width = 0.2), alpha= .7)+
+#   geom_point(aes(shape= Group), 
+#              position=position_dodge(width = 0.2),size= 1)+
+#   geom_errorbar(aes(ymin=Score_mean-SE, ymax=Score_mean+SE),
+#                 position=position_dodge(width = 0.2),width=0,lwd=1.75)+
+#   labs(y="Score",x="Time") +
+#   theme_bw(base_size = 5) +
+#   theme(legend.position=c(0.84,0.15))
+#   
+# figure1_tiff %>%   
+# ggexport(filename = "Figures/Figure1.tiff", width = 720, height = 480, res = 300)
+# 
+# Figure1%>%
+#   ggsave(filename = "Figures/Figure1.tiff", width = 320, height = 480, limitsize = F, dpi = 300)
 
 ```
 
@@ -398,7 +437,10 @@ btw_comparisons
 btw_comparisons %>%
   save_as_docx(path = "Tables/TableS3-Pairwise_between_LMM_Score.docx", pr_section = sect_properties)
 
+btw_comparisons_excel <- openxlsx2::wb_workbook()$add_worksheet("Table S3") %>% 
+  wb_add_flextable("Table S3", btw_comparisons)
 
+btw_comparisons_excel$save("Tables/TableS3-Pairwise_between_LMM_Score.xlsx")
 
 
 ```
@@ -435,6 +477,12 @@ wtn_comparisons
 
 wtn_comparisons %>%
   save_as_docx(path = "Tables/TableS4-Pairwise_within_LMM_Score.docx", pr_section = sect_properties)
+
+
+wtn_comparisons_excel <- openxlsx2::wb_workbook()$add_worksheet("Table S4") %>% 
+  wb_add_flextable("Table S4", wtn_comparisons)
+
+wtn_comparisons_excel$save("Tables/TableS4-Pairwise_within_LMM_Score.xlsx")
 
 
 ```
@@ -707,6 +755,11 @@ btw_comparsons_flex
 btw_comparsons_flex %>%
   save_as_docx(path = "Tables/TableS5-Pairwise_between_questions.docx", pr_section = sect_properties)
 
+btw_comparsons_flex_excel <- openxlsx2::wb_workbook()$add_worksheet("Table S5") %>% 
+  wb_add_flextable("Table S5", btw_comparsons_flex)
+
+btw_comparsons_flex_excel$save("Tables/TableS5-Pairwise_within_LMM_Score.xlsx")
+
 
 ```
 
@@ -778,6 +831,12 @@ wtn_comparsons_flex
 wtn_comparsons_flex %>%
   save_as_docx(path = "Tables/TableS6-Pairwise_within_questions.docx", pr_section = sect_properties)
 
+
+wtn_comparsons_flex_excel <- openxlsx2::wb_workbook()$add_worksheet("Table S6") %>% 
+  wb_add_flextable("Table S6", wtn_comparsons_flex)
+
+wtn_comparsons_flex_excel$save("Tables/TableS6-Pairwise_within_questions.xlsx")
+
 ```
 
 
@@ -807,8 +866,10 @@ for (i in 1:length(significant_questions)) {
                    position=position_dodge(width = 0.2),size= 3)+
         geom_errorbar(aes(ymin=Porcentaje-SE, ymax=Porcentaje+SE),
                       position=position_dodge(width = 0.2),width=0,lwd=1.25)+
-        annotate("text", label = paste(strwrap(significant_questions[i], width = 45), collapse = "\n"),
-                x = 0.6, y = 15, size = 4, colour = "black", hjust = 0)+
+        annotate("text", label = paste(strwrap(significant_questions[i],
+                                               width = 45),
+                                       collapse = "\n"),
+                 x = 0.6, y = 15, size = 4, colour = "black", hjust = 0)+
         labs(y="Percentage",x="Time") +
         theme_bw(base_size = 15) +
         coord_cartesian(ylim = c(10,100))
