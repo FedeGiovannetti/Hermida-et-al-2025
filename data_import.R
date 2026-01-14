@@ -5,11 +5,7 @@ library(tidyverse)
 ### Import raw database
 
 base_raw = read.xlsx("base prevencion en accion - 2023.xlsx")
-# # 
-# write.csv(base_raw, "base prevencion en accion - 2023.csv", row.names = F)
-# 
-# base_raw <- read.csv("base prevencion en accion - 2023.csv", check.names = F)
-# base_raw = read.csv("base prevencion en accion 07-12-22.csv", check.names = F)
+
 
 ### Variable selection
 
@@ -38,11 +34,11 @@ base_long = base_long%>%
   ungroup() %>% 
   mutate(across(c(ocpadre, ocmadre, Escuela), as.factor)) %>%             # Coerce character variables into factor variables
   mutate(Group = as.factor(case_when(                                     # Rename and re code levels for treatment groups
-    grest == 1 ~ "Talk",
+    grest == 1 ~ "Direct instruction",
     grest == 2 ~ "Abbreviated workshop",
     grest == 3 ~ "Workshop"
   ))) %>%
-  mutate(Group = factor(Group, levels = c("Talk", "Abbreviated workshop", "Workshop"))) %>% 
+  mutate(Group = factor(Group, levels = c("Direct instruction", "Abbreviated workshop", "Workshop"))) %>% 
   mutate(Time = as.factor(case_when(                                     # Rename and re code levels for treatment groups
     Time == 1 ~ "Baseline",
     Time == 2 ~ "T1",
@@ -115,11 +111,11 @@ base_concept = base_concept%>%
   ungroup() %>% 
   
   mutate(Group = as.factor(case_when(                                     # Rename and re code levels for treatment groups
-    grest == 1 ~ "Talk",
+    grest == 1 ~ "Direct instruction",
     grest == 2 ~ "Abb. Workshop",
     grest == 3 ~ "Workshop"
   ))) %>%
-  mutate(Group = factor(Group, levels = c("Talk", "Abb. Workshop", "Workshop"))) %>% 
+  mutate(Group = factor(Group, levels = c("Direct instruction", "Abb. Workshop", "Workshop"))) %>% 
   mutate(Time = as.factor(case_when(                                     # Rename and re code levels for treatment groups
     Time == 1 ~ "Baseline",
     Time == 2 ~ "T1",

@@ -31,13 +31,13 @@ knitr::opts_chunk$set(warning = F,message = F)
 
 ```
 
-```{r message=FALSE}
+```{r packages and functions, message=FALSE}
 
 # Fresh start for project and directories
 
 rm(list = ls())
 unlink("Tables/*")
-unlink("Figures/*")
+unlink("Figures/png/*")
 
 ## Packages
 
@@ -69,7 +69,7 @@ sect_properties <- prop_section(
 
 ### 0. Import database
 
-```{r }
+```{r data}
 
 source("data_import.R")
 
@@ -79,7 +79,7 @@ source("data_import.R")
 
 All cases with less than 5 correct answers are removed from analyses.
 
-```{r}
+```{r subset}
 
 base_completos = base_source %>%
   filter(Score >= 5) %>%
@@ -94,7 +94,7 @@ base_completos = base_source %>%
 
 # 1. Table 2. Descriptive statistics for each study group and assessment time
 
-```{r}
+```{r descriptive}
 
 
   Descriptive = base_completos %>% 
@@ -150,7 +150,7 @@ Baseline scores are compared between groups in order to establish if all partici
 
 ## 2.1. ANOVA
 
-```{r}
+```{r baseline anova}
 
 baseline_data = base_completos %>%                                              # Preparing data
   na.omit() %>% 
@@ -183,7 +183,7 @@ baseline_model_table
 
 ## 2.2. ANOVA model assumptions
 
-```{r}
+```{r baseline anova model assumptions}
 
 ### extracting standardized residuals
 baseline_model_residuals= resid(baseline_model, type = "pearson")
@@ -217,7 +217,7 @@ ggplot(data.frame(baseline_model_residuals), aes(sample = baseline_model_residua
 
 Given that normality of standardized residuals was not met for the ANOVA model, Kruskal Wallis test for non-parametric distributions is held.
 
-```{r}
+```{r baseline kruskal}
 
 kruskal_baseline = kruskal.test(Score ~ Group, baseline_data) %>% 
   broom::tidy() %>% 
@@ -242,7 +242,7 @@ Linear mixed models analysis is held in order to study score differences between
 
 ### 3.1. Table 3. Generalized Mixed Model results and model fitness values
 
-```{r}
+```{r main glmm}
 
 
 data.model <- base_completos %>%                             # Preparing data
@@ -303,7 +303,7 @@ model_table_excel$save("Tables/Table03.xlsx")
 
 ### 3.2. Checking Model assumptions
 
-```{r}
+```{r  main glmm assumptions}
 
 ### extracting residuals and fitted values
 residuals <- residuals(model)
@@ -366,39 +366,17 @@ Figure1 = base_completos%>%
   geom_errorbar(aes(ymin=Score_mean-SE, ymax=Score_mean+SE),
                 position=position_dodge(width = 0.2),width=0,lwd=1.75)+
   labs(y="Score",x="Time") +
-  theme_bw(base_size = 5) +
-  theme(legend.position=c(0.84,0.15))
+  theme_bw(base_size = 15) +
+  theme(legend.position=c(0.84,0.15)
+        # legend.text = element_text(size = 10)
+        )
 
 
 Figure1
 
 Figure1%>%
-  ggexport(filename = "Figures/Figure1.png", width = 720, height = 480)
+  ggexport(filename = "Figures/png/Figure1.png", width = 720, height = 480)
 
-# figure1_tiff = base_completos%>%  
-#   group_by(Time, Group) %>% 
-#   summarise(Score_mean = mean(Score),
-#             SE = sqrt(sum((Score-mean(Score))^2/(length(Score)-1)))/sqrt(length(Score))) %>% 
-#   ggplot(aes(x=Time, y=Score_mean, group=Group, color=Group, fill= Group))+
-#   
-#   scale_fill_manual(values=exp1_cols)+
-#   scale_color_manual(values=exp1_cols)+
-#   scale_shape_manual(values = c(21, 25, 22,24)) +
-# 
-#   geom_line(lty=2,lwd=1, position=position_dodge(width = 0.2), alpha= .7)+
-#   geom_point(aes(shape= Group), 
-#              position=position_dodge(width = 0.2),size= 1)+
-#   geom_errorbar(aes(ymin=Score_mean-SE, ymax=Score_mean+SE),
-#                 position=position_dodge(width = 0.2),width=0,lwd=1.75)+
-#   labs(y="Score",x="Time") +
-#   theme_bw(base_size = 5) +
-#   theme(legend.position=c(0.84,0.15))
-#   
-# figure1_tiff %>%   
-# ggexport(filename = "Figures/Figure1.tiff", width = 720, height = 480, res = 300)
-# 
-# Figure1%>%
-#   ggsave(filename = "Figures/Figure1.tiff", width = 320, height = 480, limitsize = F, dpi = 300)
 
 ```
 
@@ -419,8 +397,8 @@ btw_comparisons = emmeans(model, revpairwise ~ Group|Time)$contrasts %>%
          `Upper CL` = upper.CL,
          `T ratio` = t.ratio,
          `P value` = p.value) %>% 
-  mutate(Contrast = rep(c("Abb. Workshop - Talk", 
-                      "Workshop - Talk", 
+  mutate(Contrast = rep(c("Abb. Workshop - Direct instruction", 
+                      "Workshop - Direct Instruction", 
                       "Workshop - Abb. Workshop"), 2)) %>% 
   mutate(`P value` = round(x = `P value`, digits = 4)) %>% 
   mutate(`P value` = ifelse(`P value` == 0, "< .001", `P value`)) %>% 
@@ -460,7 +438,7 @@ wtn_comparisons = emmeans(model, revpairwise ~ Time|Group)$contrasts %>%
          `Upper CL` = upper.CL,
          `T ratio` = t.ratio,
          `P value` = p.value) %>% 
-  mutate(Group = c("Talk", 
+  mutate(Group = c("Direct instruction", 
                       "Abb. Workshop", 
                       "Workshop")) %>% 
   mutate(`P value` = round(x = `P value`, digits = 4)) %>% 
@@ -727,8 +705,8 @@ table_list[[i]] = emmeans(model, revpairwise ~ Group|Time, p.adjust = "holm")$co
            `Upper CL` = asymp.UCL,
            `Z ratio` = z.ratio,
            `P value` = p.value) %>% 
-  mutate(Contrast = rep(c("Abb. Workshop - Talk", 
-                      "Workshop - Talk", 
+  mutate(Contrast = rep(c("Abb. Workshop - Direct instruction", 
+                      "Workshop - Direct instruction", 
                       "Workshop - Abb. Workshop"), 2)) %>% 
 
     add_row(Contrast = significant_questions[i], .before = 1)                     ## Adding question text to table
@@ -803,7 +781,7 @@ table_list[[i]] = emmeans(model, revpairwise ~ Time|Group, p.adjust = "holm")$co
            `Upper CL` = asymp.UCL,
            `Z ratio` = z.ratio,
            `P value` = p.value) %>% 
-  mutate(Group = c("Talk", 
+  mutate(Group = c("Direct instruction", 
                       "Abb. Workshop", 
                       "Workshop")) %>% 
 
@@ -886,7 +864,7 @@ Figure2 = ggarrange(plotlist = plot_list, common.legend = T,
 Figure2
 
 Figure2%>%
-  ggexport(filename = "Figures/Figure2.png", width = 720, height = 720)
+  ggexport(filename = "Figures/png/Figure2.png", width = 720, height = 720)
 
 ```
 

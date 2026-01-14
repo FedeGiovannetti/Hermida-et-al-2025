@@ -17,3 +17,9 @@ The data used in the present article is available in this repo at [**base preven
 Implemented analyses may be visualized at [Main_analyses.html](https://fedegiovannetti.github.io/Hermida-et-al-2025/). To access source code, please refer to [Main_analyses.Rmd](https://github.com/FedeGiovannetti/Hermida-et-al-2025/blob/master/Main_analyses.Rmd)
 
 ## Citation
+
+### Notes
+
+- Figure conversion from png to tif is handled mannually at https://ngplosjournals.pagemajik.ai/artanalysis as suggested by the journal.
+- Tables that are not code-generated are only available at the OSF repo.
+
