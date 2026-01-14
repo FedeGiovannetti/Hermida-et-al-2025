@@ -10,11 +10,11 @@ Education about dengue disease is fundamental to fostering the behavioral change
 
 ## Data
 
-The data used in the present article is available in this repo at [**base prevencion en accion - 2023.xlsx**](https://github.com/FedeGiovannetti/Hermida-et-al-2025/blob/master/base%20prevencion%20en%20accion%20-%202023.xlsx)
+The data used in the present article is available in this repo at [**base prevencion en accion - 2023.xlsx**](https://github.com/FedeGiovannetti/Plos_One_2026/blob/master/base%20prevencion%20en%20accion%20-%202023.xlsx)
 
 ## Analyses
 
-Implemented analyses may be visualized at [Main_analyses.html](https://fedegiovannetti.github.io/Hermida-et-al-2025/). To access source code, please refer to [Main_analyses.Rmd](https://github.com/FedeGiovannetti/Hermida-et-al-2025/blob/master/Main_analyses.Rmd)
+Implemented analyses may be visualized at [Main_analyses.html](https://fedegiovannetti.github.io/Plos_One_2026/). To access source code, please refer to [Main_analyses.Rmd](https://github.com/FedeGiovannetti/Plos_One_2026/blob/master/Main_analyses.Rmd)
 
 ## Citation
 
